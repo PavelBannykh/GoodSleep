@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Дневник сна</title>
+<meta name="theme-color" content="#0b1226">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Дневник сна">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<style>
+  :root{
+    --bg:#0b1226; --bg2:#101736; --card:#161e3f; --card2:#1c2650;
+    --line:#283363; --text:#e9edfb; --muted:#9aa6cf; --dim:#6d7aa8;
+    --amber:#ffc46e; --amberDark:#8a5a12;
+    --blue:#7c9cf5; --green:#5fd39a; --red:#ff7a8a;
+    --radius:18px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Arial,sans-serif;
+    font-size:16px; line-height:1.45; overscroll-behavior-y:none;}
+  body{min-height:100dvh;}
+  #app{max-width:560px;margin:0 auto;padding:0 16px calc(96px + env(safe-area-inset-bottom));
+       padding-top:calc(16px + env(safe-area-inset-top));}
+  h1{font-size:22px;margin:0 0 4px;font-weight:700;letter-spacing:.2px}
+  h2{font-size:17px;margin:26px 0 10px;font-weight:650;color:var(--muted)}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 18px}
+  /* ---------- status card ---------- */
+  .status{background:linear-gradient(160deg,var(--card) 0%,var(--card2) 100%);
+    border:1px solid var(--line);border-radius:var(--radius);padding:22px 20px;text-align:center;}
+  .status .phase{font-size:13px;text-transform:uppercase;letter-spacing:2px;color:var(--muted)}
+  .status .big{font-size:44px;font-weight:700;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+  .status .since{font-size:14px;color:var(--muted)}
+  .status.awake .big{color:var(--amber)}
+  .status.settling .big{color:var(--blue)}
+  .status.asleep .big{color:var(--green)}
+  .hint{font-size:13px;color:var(--dim);margin-top:10px}
+  /* ---------- buttons ---------- */
+  .btn{display:block;width:100%;border:none;border-radius:16px;padding:20px 16px;
+    font-size:19px;font-weight:700;font-family:inherit;cursor:pointer;user-select:none;}
+  .btn:active{transform:scale(.985);filter:brightness(1.1)}
+  .btn.primary{background:linear-gradient(160deg,#ffd08a,#ffb054);color:#3a2404;margin-top:14px;
+    box-shadow:0 6px 24px rgba(255,176,84,.25)}
+  .btn.asleepb{background:linear-gradient(160deg,#8fb0ff,#5f83f0);color:#0c1638;margin-top:14px;
+    box-shadow:0 6px 24px rgba(95,131,240,.25)}
+  .btn.wakeb{background:linear-gradient(160deg,#7fe6b4,#3fca85);color:#06301c;margin-top:14px;
+    box-shadow:0 6px 24px rgba(63,202,133,.25)}
+  .linkbtn{display:inline-block;background:none;border:none;color:var(--muted);font-size:15px;
+    font-family:inherit;padding:10px 14px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+  .linkbtn.danger{color:var(--red)}
+  /* ---------- session cards ---------- */
+  .session{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px 16px;margin-bottom:10px;cursor:pointer}
+  .session:active{background:var(--card2)}
+  .session .s-title{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .session .s-name{font-weight:650}
+  .session .s-name.night{color:var(--blue)}
+  .session .s-when{color:var(--muted);font-size:14px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .chip{background:#0d1430;border:1px solid var(--line);border-radius:9px;padding:3px 9px;
+    font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .chip b{color:var(--text);font-weight:600}
+  .chip.Em{color:var(--text)}
+  .ww{width:100%;text-align:center;color:var(--dim);font-size:13px;margin:2px 0 10px;
+      font-variant-numeric:tabular-nums}
+  .ww b{color:var(--amber);font-weight:600}
+  .note{margin-top:8px;font-size:13.5px;color:var(--muted);font-style:italic}
+  .ongoing{color:var(--green)}
+  /* ---------- stats ---------- */
+  .seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;
+    overflow:hidden;margin-bottom:14px}
+  .seg button{flex:1;background:none;border:none;color:var(--muted);font-family:inherit;
+    font-size:15px;padding:10px 0;cursor:pointer}
+  .seg button.on{background:var(--card2);color:var(--text);font-weight:650}
+  .day{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;margin-bottom:14px}
+  .day .d-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;
+    border-bottom:1px solid var(--line);padding-bottom:10px}
+  .day .d-title{font-weight:700;font-size:16.5px}
+  .day .d-flag{font-size:12.5px;color:var(--dim)}
+  .row{display:flex;justify-content:space-between;gap:12px;padding:4.5px 0;font-size:14.5px}
+  .row .lbl{color:var(--muted)}
+  .row .val{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;font-weight:550}
+  .row.h{color:var(--text);font-weight:650;padding-top:10px}
+  .row.h .lbl{color:var(--text)}
+  .row.sum{border-top:1px dashed var(--line);margin-top:6px;padding-top:9px}
+  .row.sum .val{font-weight:700}
+  .nightval{color:var(--blue);font-weight:650}
+  /* ---------- tabs ---------- */
+  nav{position:fixed;left:0;right:0;bottom:0;background:rgba(11,18,38,.92);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:20}
+  nav .inner{max-width:560px;margin:0 auto;display:flex}
+  nav button{flex:1;background:none;border:none;color:var(--dim);font-family:inherit;font-size:12px;
+    padding:9px 0 8px;cursor:pointer}
+  nav button .ic{display:block;font-size:21px;margin-bottom:2px}
+  nav button.on{color:var(--amber)}
+  /* ---------- modal ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(4,7,18,.72);z-index:50;display:none;
+    align-items:flex-end;justify-content:center}
+  .overlay.open{display:flex}
+  .sheet{background:var(--bg2);border:1px solid var(--line);border-radius:22px 22px 0 0;
+    width:100%;max-width:560px;max-height:88dvh;overflow-y:auto;
+    padding:10px 18px calc(24px + env(safe-area-inset-bottom))}
+  .grab{width:40px;height:4px;border-radius:3px;background:var(--line);margin:6px auto 14px}
+  .field{margin-bottom:14px}
+  .field label{display:block;color:var(--muted);font-size:13.5px;margin-bottom:6px}
+  .field input[type=datetime-local], .field input[type=text]{
+    width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;
+    color:var(--text);font-size:16.5px;font-family:inherit;padding:12px 13px}
+  .field .inline{display:flex;gap:8px;align-items:center}
+  .field .inline input{flex:1}
+  .seg2{display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .seg2 button{flex:1;background:none;border:none;color:var(--muted);font-family:inherit;
+    font-size:14.5px;padding:11px 0;cursor:pointer}
+  .seg2 button.on{background:var(--card2);color:var(--text);font-weight:650}
+  .btn.save{background:linear-gradient(160deg,#8fb0ff,#5f83f0);color:#0c1638;margin-top:6px}
+  .btn.ghost{background:var(--card);border:1px solid var(--line);color:var(--text);font-size:16px;
+    padding:15px;margin-top:12px}
+  .btn.del{background:none;border:1px solid #5c2733;color:var(--red);font-size:16px;padding:15px;margin-top:12px}
+  .empty{color:var(--dim);text-align:center;padding:34px 10px;font-size:15px}
+  /* ---------- more ---------- */
+  .settings .item{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;margin-bottom:12px}
+  .settings .item h3{margin:0 0 6px;font-size:16px}
+  .settings .item p{margin:0;color:var(--muted);font-size:13.5px}
+  .settings .btn{margin-top:10px;font-size:16px;padding:15px}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:110px;background:var(--card2);
+    border:1px solid var(--line);color:var(--text);border-radius:14px;padding:12px 18px;font-size:14.5px;
+    z-index:80;opacity:0;transition:opacity .25s;pointer-events:none;max-width:86%;text-align:center}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="view"></div>
+</div>
+
+<nav><div class="inner">
+  <button data-tab="home" class="on"><span class="ic">🌙</span>Дневник</button>
+  <button data-tab="stats"><span class="ic">📊</span>Статистика</button>
+  <button data-tab="more"><span class="ic">⚙️</span>Ещё</button>
+</div></nav>
+
+<div class="overlay" id="overlay">
+  <div class="sheet" id="sheet"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============================== данные ============================== */
+const LS_KEY = "goodsleep.v1";
+let S = load();
+let tab = "home";
+let statsDays = 7;
+
+function load(){
+  try{
+    const d = JSON.parse(localStorage.getItem(LS_KEY));
+    if (d && Array.isArray(d.sessions)) return d;
+  }catch(e){}
+  return { sessions: [] };
+}
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(S)); }
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+/* сессия = один сон: settle (начали укладывать) / asleep (уснул) / wake (проснулся) */
+function startOf(s){ return s.settle || s.asleep; }
+function endOf(s){ return s.wake || s.asleep || s.settle; }
+function sortedSessions(){
+  return [...S.sessions].sort((a,b)=>{
+    const A = new Date(startOf(a)).getTime(), B = new Date(startOf(b)).getTime();
+    return A - B;
+  });
+}
+function classify(s){
+  if (s.kind === "nap" || s.kind === "night") return s.kind;
+  const base = s.asleep || s.settle;
+  if (!base) return "nap";
+  const d = new Date(base), m = d.getHours()*60 + d.getMinutes();
+  return (m >= 17*60+30 || m < 5*60) ? "night" : "nap";
+}
+
+/* ============================== форматирование ============================== */
+const pad = n => String(n).padStart(2,"0");
+function fmtHM(d){ return pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+function fmtDur(min){
+  if (min == null || !isFinite(min)) return "—";
+  min = Math.max(0, Math.round(min));
+  const h = Math.floor(min/60), m = min%60;
+  return h + ":" + pad(m);
+}
+function fmtMin(min){
+  if (min == null || !isFinite(min)) return "—";
+  min = Math.round(min);
+  return min + " мин";
+}
+function elapsed(iso){
+  const ms = Date.now() - new Date(iso).getTime();
+  return fmtDur(ms/60000);
+}
+function dkey(d){ const x = new Date(d); return x.getFullYear()+"-"+pad(x.getMonth()+1)+"-"+pad(x.getDate()); }
+function keyShift(k, days){
+  const [y,m,d] = k.split("-").map(Number);
+  const x = new Date(y, m-1, d + days);
+  return dkey(x);
+}
+const WD = ["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"];
+const MON = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+function dayTitle(k){
+  const [y,m,d] = k.split("-").map(Number);
+  const x = new Date(y, m-1, d);
+  const todayK = dkey(new Date());
+  const yestK = keyShift(todayK, -1);
+  let label = WD[x.getDay()] + ", " + d + " " + MON[x.getMonth()];
+  if (k === todayK) label = "Сегодня · " + label;
+  else if (k === yestK) label = "Вчера · " + label;
+  return label;
+}
+function minFromIso(iso){ return iso ? new Date(iso).getTime()/60000 : null; }
+function diffMin(aIso, bIso){ // b - a в минутах
+  if (!aIso || !bIso) return null;
+  return (new Date(bIso).getTime() - new Date(aIso).getTime())/60000;
+}
+
+/* ============================== группировка по дням ============================== */
+/* День = от утреннего подъёма до следующего утреннего подъёма:
+   подъём → дневные сны → ночной сон (может состоять из нескольких отрезков — ночные пробуждения). */
+function buildDays(){
+  const ss = sortedSessions();
+  const days = new Map(); // key -> {key, naps:[], block:null}
+  const day = k => { if(!days.has(k)) days.set(k,{key:k,naps:[],block:null}); return days.get(k); };
+
+  for (const s of ss){
+    if (classify(s) === "nap"){
+      const k = dkey(startOf(s));
+      day(k).naps.push(s);
+    }
+  }
+  // ночные блоки: подряд идущие ночные сны, пробел между которыми <= 2 часов
+  const blocks = [];
+  let cur = null;
+  for (const s of ss){
+    if (classify(s) === "night"){
+      const st = new Date(startOf(s)).getTime();
+      if (cur && st - cur.endMs <= 120*60000){
+        cur.segments.push(s);
+        cur.endMs = new Date(endOf(s)).getTime();
+      } else {
+        cur = { segments:[s], startMs:st, endMs:new Date(endOf(s)).getTime() };
+        blocks.push(cur);
+      }
+    } else {
+      cur = null;
+    }
+  }
+  for (const b of blocks){
+    const st = new Date(b.startMs);
+    let k = dkey(st);
+    if (st.getHours()*60 + st.getMinutes() < 5*60) k = keyShift(k, -1); // легли после полуночи — день предыдущий
+    if (!day(k).block) day(k).block = b; // первый блок вечера
+  }
+  // утренний подъём дня = конец ночного блока предыдущего вечера
+  for (const d of days.values()){
+    const prevB = days.get(keyShift(d.key, -1))?.block;
+    d.morningWake = prevB ? prevB.segments[prevB.segments.length-1].wake : null;
+    d.blockDone = !!(d.block && d.block.segments[d.block.segments.length-1].wake);
+  }
+  return days;
+}
+
+/* метрики дня — как в Excel-дневнике */
+function dayStats(d){
+  const r = {
+    key: d.key, morningWake: d.morningWake, naps: [], night: null,
+    awakeTotal: 0, daySleep: 0, nightDur: null, nightAwakes: null, ongoing: false
+  };
+  // ночной блок
+  if (d.block){
+    const segs = d.block.segments;
+    const first = segs[0], last = segs[segs.length-1];
+    const endIso = last.wake || new Date().toISOString();
+    if (!last.wake) r.ongoing = true;
+    r.night = {
+      settle: first.settle, asleep: first.asleep, wake: last.wake,
+      fallMins: diffMin(first.settle, first.asleep),
+      dur: diffMin(first.asleep, endIso)
+    };
+    if (segs.length > 1){
+      let awake = 0, n = 0;
+      for (let i = 1; i < segs.length; i++){
+        const g = diffMin(segs[i-1].wake, segs[i].asleep);
+        if (g != null){ awake += g; n++; }
+      }
+      r.nightAwakes = { count: n, mins: awake };
+    }
+  }
+  // дневные сны + ВБ
+  let prevWake = d.morningWake;
+  for (const s of d.naps){
+    const wb = diffMin(prevWake, startOf(s));
+    const fall = diffMin(s.settle, s.asleep);
+    const dur = diffMin(s.asleep, s.wake);
+    if (s.asleep && prevWake) r.awakeTotal += diffMin(prevWake, s.asleep);
+    r.naps.push({ s, wb, fall, dur, wake: s.wake, settle: s.settle, asleep: s.asleep });
+    if (s.wake) prevWake = s.wake;
+    if (dur != null) r.daySleep += dur;
+  }
+  if (d.block){
+    const nb = d.block.segments[0];
+    r.wbBeforeNight = diffMin(prevWake, startOf(nb));
+    for (const seg of d.block.segments){
+      if (seg.asleep && prevWake) r.awakeTotal += diffMin(prevWake, seg.asleep);
+      if (seg.wake) prevWake = seg.wake;
+    }
+  }
+  if (r.night && r.night.dur != null) r.nightDur = r.night.dur;
+  r.totalSleep = (r.daySleep || 0) + (r.nightDur || 0);
+  return r;
+}
+
+/* ============================== текущая фаза ============================== */
+function phase(){
+  const ss = sortedSessions();
+  const L = ss[ss.length-1];
+  if (!L) return { p:"empty" };
+  if (L.wake) return { p:"awake", since:L.wake, s:L };
+  if (L.asleep) return { p:"asleep", since:L.asleep, s:L };
+  return { p:"settling", since:L.settle || null, s:L };
+}
+
+/* ============================== действия ============================== */
+function actStartSettle(){
+  S.sessions.push({ id:uid(), settle:new Date().toISOString(), asleep:null, wake:null, kind:"auto", note:"" });
+  save();
+}
+function actFellAsleep(){
+  const ph = phase();
+  if (ph.p === "settling" && ph.s) ph.s.asleep = new Date().toISOString();
+  else S.sessions.push({ id:uid(), settle:null, asleep:new Date().toISOString(), wake:null, kind:"auto", note:"" });
+  save();
+}
+function actWokeUp(){
+  const ph = phase();
+  if (ph.p === "asleep" && ph.s) ph.s.wake = new Date().toISOString();
+  save();
+}
+function actCancelSettle(){
+  const ph = phase();
+  if (ph.p === "settling" && ph.s) S.sessions = S.sessions.filter(x => x.id !== ph.s.id);
+  save();
+}
+
+/* ============================== вкладка «Дневник» ============================== */
+function renderHome(){
+  const ph = phase();
+  let card = "", action = "", links = "";
+
+  if (ph.p === "empty"){
+    card = `<div class="status"><div class="phase">Дневник сна</div>
+      <div style="font-size:15px;color:var(--muted);margin-top:8px">
+        Отмечайте события одной кнопкой — всё остальное посчитается автоматически.<br><br>
+        Нажмите <b style="color:var(--amber)">«Начали укладывать»</b>, когда закроете шторы и начнёте укладывать ребёнка.</div></div>`;
+    action = `<button class="btn primary" data-act="settle">🌙 Начали укладывать</button>`;
+    links = `<div style="text-align:center"><button class="linkbtn" data-act="asleep">Ребёнок уснул сам (без укладывания)</button></div>`;
+  }
+  else if (ph.p === "awake"){
+    card = statusCard("awake", "Бодрствует", elapsed(ph.since), "проснулся в " + fmtHM(new Date(ph.since)));
+    action = `<button class="btn primary" data-act="settle">🌙 Начали укладывать</button>`;
+    links = `<div style="text-align:center"><button class="linkbtn" data-act="asleep">Уснул сам, без укладывания</button></div>`;
+  }
+  else if (ph.p === "settling"){
+    card = statusCard("settling", "Укладываем", elapsed(ph.since),
+      "начали укладывать в " + fmtHM(new Date(ph.since)));
+    action = `<button class="btn asleepb" data-act="asleep">💤 Уснул</button>`;
+    links = `<div style="text-align:center"><button class="linkbtn danger" data-act="cancel">Отменить — не укладываем</button></div>`;
+  }
+  else {
+    const k = classify(ph.s) === "night" ? "Ночной сон" : "Дневной сон";
+    card = statusCard("asleep", k, elapsed(ph.since), "уснул в " + fmtHM(new Date(ph.since)));
+    action = `<button class="btn wakeb" data-act="wake">☀️ Проснулся</button>`;
+  }
+
+  const list = renderTimeline();
+  return `<h1>Дневник сна</h1>
+    ${card}${action}${links}
+    <h2>Последние записи</h2>${list}
+    <div style="text-align:center"><button class="linkbtn" data-act="add">＋ Добавить запись вручную</button></div>`;
+}
+function statusCard(cls, label, big, since){
+  return `<div class="status ${cls}"><div class="phase">${label}</div>
+    <div class="big" id="elapsed">${big}</div><div class="since">${since}</div></div>`;
+}
+
+/* цепочка последних событий с ВБ между ними */
+function renderTimeline(){
+  const ss = sortedSessions();
+  if (!ss.length) return `<div class="empty">Пока нет записей</div>`;
+  const days = buildDays();
+  let napCounter = {};
+  let html = "";
+  const tail = ss.slice(-9);
+  for (let i = 0; i < tail.length; i++){
+    const s = tail[i];
+    const k = dkey(startOf(s));
+    // ВБ перед этим сном
+    let prevWake = (i > 0 && tail[i-1].wake) ? tail[i-1].wake : null;
+    if (!prevWake){
+      const dk = keyShift(k, 0);
+      const mw = days.get(dk)?.morningWake;
+      if (mw) prevWake = mw;
+    }
+    const wb = diffMin(prevWake, startOf(s));
+    const wbHtml = (i > 0 && wb != null)
+      ? `<div class="ww">бодрствование <b>${fmtDur(wb)}</b></div>` : "";
+    html += wbHtml + sessionCard(s);
+  }
+  return html;
+}
+function sessionCard(s){
+  const isNight = classify(s) === "night";
+  const settle = s.settle ? fmtHM(new Date(s.settle)) : null;
+  const asleep = s.asleep ? fmtHM(new Date(s.asleep)) : null;
+  const wake = s.wake ? fmtHM(new Date(s.wake)) : null;
+  const when = [settle ? settle : "", settle && asleep ? "→" : "", asleep || ""].filter(Boolean).join(" ");
+  const dur = diffMin(s.asleep, s.wake);
+  const fall = diffMin(s.settle, s.asleep);
+  let chips = "";
+  if (settle) chips += `<span class="chip Em">🛏 укладывали с <b>${settle}</b></span>`;
+  if (fall != null) chips += `<span class="chip Em">⏳ укладывание <b>${fmtMin(fall)}</b></span>`;
+  if (asleep) chips += `<span class="chip">💤 уснул <b>${asleep}</b></span>`;
+  if (wake) chips += `<span class="chip">⏰ проснулся <b>${wake}</b></span>`;
+  if (dur != null) chips += `<span class="chip">🌙 сон <b>${fmtDur(dur)}</b></span>`;
+  if (!wake && s.asleep) chips += `<span class="chip ongoing">спит сейчас…</span>`;
+  if (!s.asleep && s.settle) chips += `<span class="chip ongoing">укладываем…</span>`;
+  const note = s.note ? `<div class="note">💬 ${esc(s.note)}</div>` : "";
+  return `<div class="session" data-edit="${s.id}">
+    <div class="s-title"><span class="s-name ${isNight?"night":""}">${isNight?"Ночной сон":"Дневной сон"}</span>
+    <span class="s-when">${wake ? wake : ""}</span></div>
+    <div class="chips">${chips}</div>${note}</div>`;
+}
+
+/* ============================== вкладка «Статистика» ============================== */
+function renderStats(){
+  const days = buildDays();
+  const arr = [...days.values()].sort((a,b)=> a.key < b.key ? 1 : -1).slice(0, statsDays);
+  if (!arr.length) return `<h1>Статистика</h1><div class="empty">Заполните дневник — здесь появятся данные по дням</div>`;
+  let html = `<h1>Статистика</h1>
+    <div class="seg">
+      ${[7,14,30].map(n=>`<button data-days="${n}" class="${n===statsDays?"on":""}">${n} дней</button>`).join("")}
+    </div>`;
+  for (const d of arr) html += dayCard(dayStats(d));
+  return html;
+}
+function row(lbl, val, cls=""){
+  return `<div class="row ${cls}"><span class="lbl">${lbl}</span><span class="val ${cls.includes("nv")?"nightval":""}">${val}</span></div>`;
+}
+function dayCard(r){
+  const napIdx = {};
+  let html = `<div class="day"><div class="d-head">
+    <span class="d-title">${dayTitle(r.key)}</span>
+    <span class="d-flag">${r.ongoing ? "ночь идёт" : (r.morningWake ? "" : "неполный")}</span></div>`;
+  html += row("Ночной сон", r.nightDur != null ? fmtDur(r.nightDur) + (r.ongoing ? " →" : "") : "—", "h nv");
+  html += row("Подъём", r.morningWake ? fmtHM(new Date(r.morningWake)) : "—");
+  r.naps.forEach((n, i) => {
+    html += row(`ВБ перед сном ${i+1}`, n.wb != null ? fmtDur(n.wb) : "—");
+    html += row(`Сон ${i+1}: начали укладывать`, n.settle ? fmtHM(new Date(n.settle)) : (n.asleep ? "сразу уснул" : "—"));
+    html += row(`Сон ${i+1}: укладывали`, n.fall != null ? fmtMin(n.fall) : "—");
+    html += row(`Сон ${i+1}: количество сна`, n.dur != null ? fmtDur(n.dur) : "идёт →");
+    html += row(`Подъём с ${i+1} сна`, n.wake ? fmtHM(new Date(n.wake)) : "—");
+  });
+  if (r.night){
+    html += row("ВБ перед ночным сном", r.wbBeforeNight != null ? fmtDur(r.wbBeforeNight) : "—");
+    html += row("Ночной: начали укладывать", r.night.settle ? fmtHM(new Date(r.night.settle)) : "—");
+    html += row("Ночной: укладывали", r.night.fallMins != null ? fmtMin(r.night.fallMins) : "—");
+    html += row("Начало сна", r.night.asleep ? fmtHM(new Date(r.night.asleep)) : "—");
+  }
+  if (r.nightAwakes && r.nightAwakes.count){
+    html += row("Ночные пробуждения", r.nightAwakes.count + " (Σ " + fmtMin(r.nightAwakes.mins) + ")");
+  }
+  html += row("Суммарное ВБ", fmtDur(r.awakeTotal), "sum");
+  html += row("Суммарный дневной сон", fmtDur(r.daySleep), "sum");
+  html += row("Всего сна за сутки", fmtDur(r.totalSleep), "sum");
+  html += `</div>`;
+  return html;
+}
+
+/* ============================== вкладка «Ещё» ============================== */
+function renderMore(){
+  return `<h1>Ещё</h1><div class="settings">
+    <div class="item"><h3>💾 Резервная копия</h3>
+      <p>Все данные хранятся только в этом приложении на этом iPhone. Если удалить приложение
+      с экрана «Домой» или очистить данные сайтов в Safari, записи пропадут — делайте копию
+      раз в неделю‑две и храните её в «Файлах» или отправляйте себе в мессенджер/на почту.</p>
+      <button class="btn ghost" data-act="export">Экспортировать данные (файл)</button>
+      <button class="btn ghost" data-act="import">Импортировать из файла</button>
+      <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+    </div>
+    <div class="item"><h3>🗑 Очистить данные</h3>
+      <p>Удалить все записи. Сначала лучше сделать экспорт.</p>
+      <button class="btn del" data-act="clear">Удалить все записи</button>
+    </div>
+    <div class="item"><h3>ℹ️ О приложении</h3>
+      <p>Дневник сна ребёнка. Отмечайте: начали укладывать → уснул → проснулся.
+      Время бодрствования (ВБ) считается от пробуждения до начала укладывания.
+      Дневной сон — сны до вечернего укладывания; всё, что началось после 17:30, считается ночным сном.
+      Если ночью ребёнок проснулся — отметьте «Начали укладывать → Уснул», пробуждение попадёт в статистику.<br><br>
+      Версия 1.0 · данные не покидают телефон.</p>
+    </div></div>`;
+}
+
+/* ============================== модальное окно редактирования ============================== */
+function toLocalInput(iso){
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes());
+}
+function openEdit(id){
+  const s = id ? S.sessions.find(x=>x.id===id) : null;
+  const esc_v = s ? esc(s.note||"") : "";
+  const kind = s ? (s.kind||"auto") : "auto";
+  document.getElementById("sheet").innerHTML = `
+    <div class="grab"></div>
+    <h2 style="margin-top:0">${s?"Изменить запись":"Новая запись"}</h2>
+    <div class="field"><label>🌙 Начали укладывать (закрыли шторы)</label>
+      <div class="inline"><input type="datetime-local" id="f_settle" value="${toLocalInput(s&&s.settle)}">
+      ${s&&s.settle?'<button class="linkbtn" data-clear="f_settle">✕</button>':""}</div></div>
+    <div class="field"><label>💤 Уснул</label>
+      <div class="inline"><input type="datetime-local" id="f_asleep" value="${toLocalInput(s&&s.asleep)}">
+      ${s&&s.asleep?'<button class="linkbtn" data-clear="f_asleep">✕</button>':""}</div></div>
+    <div class="field"><label>☀️ Проснулся</label>
+      <div class="inline"><input type="datetime-local" id="f_wake" value="${toLocalInput(s&&s.wake)}">
+      ${s&&s.wake?'<button class="linkbtn" data-clear="f_wake">✕</button>':""}</div></div>
+    <div class="field"><label>Тип сна (обычно можно оставить «Авто»)</label>
+      <div class="seg2" id="f_kind">
+        <button data-k="auto" class="${kind==="auto"?"on":""}">Авто</button>
+        <button data-k="nap" class="${kind==="nap"?"on":""}">Дневной</button>
+        <button data-k="night" class="${kind==="night"?"on":""}">Ночной</button>
+      </div></div>
+    <div class="field"><label>Комментарий</label>
+      <input type="text" id="f_note" value="${esc_v}" placeholder="например: уснул в коляске…"></div>
+    <button class="btn save" id="f_save">Сохранить</button>
+    <button class="btn ghost" id="f_cancel">Отмена</button>
+    ${s?'<button class="btn del" id="f_del">Удалить запись</button>':""}`;
+  const ov = document.getElementById("overlay");
+  ov.classList.add("open");
+  let chosenKind = kind;
+  document.getElementById("f_kind").addEventListener("click", e=>{
+    const b = e.target.closest("button"); if(!b) return;
+    chosenKind = b.dataset.k;
+    document.querySelectorAll("#f_kind button").forEach(x=>x.classList.toggle("on", x===b));
+  });
+  document.querySelectorAll("[data-clear]").forEach(b=>b.addEventListener("click", ()=>{
+    document.getElementById(b.dataset.clear).value = "";
+  }));
+  document.getElementById("f_cancel").addEventListener("click", closeEdit);
+  if (s) document.getElementById("f_del").addEventListener("click", ()=>{
+    if (confirm("Удалить эту запись?")){
+      S.sessions = S.sessions.filter(x=>x.id!==s.id); save(); closeEdit(); render();
+    }
+  });
+  document.getElementById("f_save").addEventListener("click", ()=>{
+    const gv = id_ => {
+      const v = document.getElementById(id_).value;
+      return v ? new Date(v).toISOString() : null;
+    };
+    const settle = gv("f_settle"), asleep = gv("f_asleep"), wake = gv("f_wake");
+    if (!settle && !asleep && !wake){ toast("Заполните хотя бы одно время"); return; }
+    if (settle && asleep && new Date(asleep) < new Date(settle)){ toast("«Уснул» раньше, чем «начали укладывать»"); return; }
+    if (asleep && wake && new Date(wake) < new Date(asleep)){ toast("«Проснулся» раньше, чем «уснул»"); return; }
+    const note = document.getElementById("f_note").value.trim();
+    if (s){ Object.assign(s, {settle, asleep, wake, kind:chosenKind, note}); }
+    else S.sessions.push({ id:uid(), settle, asleep, wake, kind:chosenKind, note });
+    save(); closeEdit(); render();
+  });
+}
+function closeEdit(){ document.getElementById("overlay").classList.remove("open"); }
+
+/* ============================== экспорт / импорт ============================== */
+function doExport(){
+  const blob = new Blob([JSON.stringify({app:"goodsleep",version:1,exportedAt:new Date().toISOString(),data:S}, null, 1)],
+    {type:"application/json"});
+  const name = "dnevnik-sna-" + dkey(new Date()) + ".json";
+  const file = new File([blob], name, {type:"application/json"});
+  if (navigator.canShare && navigator.canShare({files:[file]})){
+    navigator.share({files:[file], title:"Дневник сна — копия"}).catch(()=>{});
+  } else {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+    toast("Файл копии сохранён в «Загрузки»");
+  }
+}
+function doImport(file){
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    try{
+      const j = JSON.parse(rd.result);
+      const d = j.data || j;
+      if (!d || !Array.isArray(d.sessions)) throw 0;
+      if (!confirm("Импорт заменит текущие записи (" + S.sessions.length + " шт.). Продолжить?")) return;
+      S = { sessions: d.sessions };
+      save(); render(); toast("Импортировано записей: " + d.sessions.length);
+    }catch(e){ toast("Не удалось прочитать файл"); }
+  };
+  rd.readAsText(file);
+}
+
+/* ============================== утилиты и рендер ============================== */
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+let toastT;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove("show"), 2600);
+}
+function render(){
+  const v = document.getElementById("view");
+  v.innerHTML = tab === "home" ? renderHome() : tab === "stats" ? renderStats() : renderMore();
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on", b.dataset.tab===tab));
+  window.scrollTo(0,0);
+}
+
+document.querySelector("nav").addEventListener("click", e=>{
+  const b = e.target.closest("button"); if (!b) return;
+  tab = b.dataset.tab; render();
+});
+document.getElementById("view").addEventListener("click", e=>{
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act;
+  if (a === "settle") actStartSettle();
+  else if (a === "asleep") actFellAsleep();
+  else if (a === "wake") actWokeUp();
+  else if (a === "cancel"){ if (confirm("Отменить укладывание? Отметка будет удалена.")) actCancelSettle(); }
+  else if (a === "add"){ openEdit(null); return; }
+  else if (a === "export") return doExport();
+  else if (a === "import"){ document.getElementById("importFile").click(); return; }
+  else if (a === "clear"){
+    if (confirm("Точно удалить ВСЕ записи? Действие необратимо.") && confirm("Последнее подтверждение: удалить все данные?")){
+      S = {sessions:[]}; save(); toast("Все записи удалены");
+    }
+  }
+  render();
+});
+document.getElementById("view").addEventListener("change", e=>{
+  if (e.target.id === "importFile" && e.target.files[0]) doImport(e.target.files[0]);
+});
+document.getElementById("view").addEventListener("click", e=>{
+  const s = e.target.closest("[data-edit]"); if (!s) return;
+  openEdit(s.dataset.edit);
+});
+document.getElementById("overlay").addEventListener("click", e=>{
+  if (e.target.id === "overlay") closeEdit();
+});
+
+/* тикающие таймеры на главном экране */
+setInterval(()=>{
+  if (tab !== "home") return;
+  const el = document.getElementById("elapsed");
+  const ph = phase();
+  if (el && ph.since) el.textContent = elapsed(ph.since);
+}, 1000);
+
+/* скрытый помощник для тестирования: window.__demo() */
+window.__demo = function(){
+  const mk = (y,mo,d,h,mi) => new Date(y,mo-1,d,h,mi).toISOString();
+  S = { sessions: [
+    // 28 сентября
+    {settle:mk(2026,9,28,8,15),  asleep:mk(2026,9,28,8,25),  wake:mk(2026,9,28,9,55),  kind:"auto", note:""},
+    {settle:mk(2026,9,28,12,5),  asleep:mk(2026,9,28,12,15), wake:mk(2026,9,28,13,45), kind:"auto", note:""},
+    {settle:mk(2026,9,28,16,0),  asleep:mk(2026,9,28,16,10), wake:mk(2026,9,28,16,55), kind:"auto", note:""},
+    {settle:mk(2026,9,28,19,30), asleep:mk(2026,9,28,19,45), wake:mk(2026,9,29,6,50),  kind:"auto", note:""},
+    // 29 сентября
+    {settle:mk(2026,9,29,8,45),  asleep:mk(2026,9,29,8,55),  wake:mk(2026,9,29,10,40), kind:"auto", note:""},
+    {settle:mk(2026,9,29,12,55), asleep:mk(2026,9,29,13,5),  wake:mk(2026,9,29,14,10), kind:"auto", note:""},
+    {settle:mk(2026,9,29,20,0),  asleep:mk(2026,9,29,20,20), wake:mk(2026,9,29,23,40), kind:"auto", note:""},
+    {settle:mk(2026,9,29,23,42), asleep:mk(2026,9,29,23,50), wake:mk(2026,9,30,6,0),   kind:"auto", note:"проснулся ночью"},
+    // 30 сентября
+    {settle:mk(2026,9,30,7,50),  asleep:mk(2026,9,30,7,55),  wake:mk(2026,9,30,9,30),  kind:"auto", note:""},
+    {settle:mk(2026,9,30,11,40), asleep:mk(2026,9,30,11,50), wake:mk(2026,9,30,13,10), kind:"auto", note:""},
+    {settle:mk(2026,9,30,15,40), asleep:mk(2026,9,30,16,0),  wake:mk(2026,9,30,16,40), kind:"auto", note:""},
+    {settle:mk(2026,9,30,19,10), asleep:mk(2026,9,30,19,30), wake:mk(2026,10,1,7,5),   kind:"auto", note:""}
+  ].map(x=>({id:uid(), ...x})) };
+  save(); render();
+  return "demo loaded";
+};
+
+render();
+if ("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
